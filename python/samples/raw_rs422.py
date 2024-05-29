@@ -118,7 +118,7 @@ settings.crc = Port.OFF
 settings.transmit_clock = Port.TXC_INPUT
 settings.receive_clock = Port.RXC_INPUT
 settings.internal_clock_rate = 10022400
-settings.internal_loopback = True
+settings.internal_loopback = False
 port.apply_settings(settings)
 
 # print settings
