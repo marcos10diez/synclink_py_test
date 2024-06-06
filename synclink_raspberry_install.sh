@@ -13,5 +13,8 @@ cd ../drivers
 ./setup
 cd ../..
 # copy python scripts
-cp -rf python/ synclink/python/
+cp -rf python/ synclink/
 # install python mgapi
+cd python
+sudo apt install python3-pip -y
+pip install mgapi.tar.gz

@@ -25,7 +25,7 @@ from mgapi import Port
 
 
 # size of data sent in this sample
-DATA_SIZE = 32
+DATA_SIZE = 128
 
 # True = continuous send data (no idle between writes)
 # False = bursts of data (zeros) separated by idle (ones)
@@ -117,7 +117,7 @@ settings.encoding = Port.NRZ
 settings.crc = Port.OFF
 settings.transmit_clock = Port.TXC_INPUT
 settings.receive_clock = Port.RXC_INPUT
-settings.internal_clock_rate = 10022400
+settings.internal_clock_rate = 115200
 settings.internal_loopback = False
 port.apply_settings(settings)
 
@@ -126,7 +126,7 @@ port.apply_settings(settings)
 print(port.get_settings())
 
 # send all ones when no data is available
-port.transmit_idle_pattern = 0x55
+port.transmit_idle_pattern = 0xFF
 
 # set receive data transfer size: range=1-256, default=256
 # < 128  : programmed I/O (PIO), low data rate
@@ -150,20 +150,20 @@ receive_thread.start()
 # sample data = all 0
 buf = bytearray(DATA_SIZE)
 for i in range(0, len(buf)):
-    buf[i] = 0x55
+    buf[i] = 0x00
 
 i = 1
 try:
     while run:
-        print('>>> ' + '{:0>9d}'.format(i) + ' send ' +
-            str(len(buf)) + ' bytes\n', end='')
+        # print('>>> ' + '{:0>9d}'.format(i) + ' send ' +
+        #     str(len(buf)) + ' bytes\n', end='')
         port.write(buf)
         if CONTINUOUS_SEND:
 			# prevent idle by keeping send count > 0
 			# limit latency by keeping send count < 2*DATA_SIZE
 			# latency = time from write to serial data output
-            print('>>> wait for send count <= ' +
-                str(DATA_SIZE) + '\n', end='')
+            # print('>>> wait for send count <= ' +
+            #     str(DATA_SIZE) + '\n', end='')
             while port.transmit_count() > DATA_SIZE:
                 time.sleep(0.005)
         else:
