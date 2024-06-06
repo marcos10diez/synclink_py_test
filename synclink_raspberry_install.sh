@@ -2,6 +2,8 @@
 # build synclink tools
 tar xJvf linuxwan.tar.xz
 cd synclink/tools
+# instalar make
+sudo apt-get install build-essential
 make
 make install
 # build drivers requirements for raspberry
