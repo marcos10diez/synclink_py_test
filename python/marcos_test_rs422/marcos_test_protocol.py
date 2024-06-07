@@ -11,6 +11,7 @@ from mgapi import Port
 
 DEFAULT_PACKET_HEADER = bytes(range(0xFF, 0xFF - 16 * 0x11, -0x11))
 DEFAULT_PACKET_DATA = bytes([(i // 3) * 0x11 for i in range(48)])
+run = True
 
 def display_buf(buf: bytearray):
     """display a buffer of data in hex format, 16 bytes per line"""
@@ -30,12 +31,12 @@ def display_buf(buf: bytearray):
 class SerialProtocolPort:
     def default_settings():
         settings = Port.Settings()
-        settings.protocol = Port.RAW
+        settings.protocol = Port.BISYNC
         settings.encoding = Port.NRZ
         settings.crc = Port.OFF
         settings.transmit_clock = Port.TXC_INPUT
         settings.receive_clock = Port.RXC_INPUT
-        settings.internal_clock_rate = 115200
+        settings.internal_clock_rate = 1002240
         settings.internal_loopback = False
         return settings
     
@@ -73,56 +74,78 @@ class SerialProtocolPort:
     def end_transmission(self):
         self.port.write(bytearray([self.start_end_byte]))
 
+    def send_data(self, header, data):
+        if len(header) != self.header_size or len(data) != self.data_size:
+            raise ValueError("Invalid packet size")
+        packet = bytearray([self.start_end_byte]) + header + data + bytearray([self.start_end_byte])
+        self.port.write(packet)
+        logging.debug(f"Sent packet: {(header + data).hex()}")  # Mensaje de depuración
+
     def receive_data(self):
+        self.buffer = bytearray()
+        
         while True:
-            try:
-                data = self.port.read(self.packet_size)
-                if not data:
-                    continue
-                self.buffer.extend(data)
-
-                # Mantener el buffer para la búsqueda del byte de inicio y procesamiento del paquete completo
-                while len(self.buffer) >= self.packet_size + 2:
-                    # Buscar el byte de inicio
-                    start_index = self.buffer.find(self.start_end_byte)
-                    if start_index == -1:
-                        # No se encontró el byte de inicio, descartar solo los primeros bytes
-                        self.buffer = self.buffer[-(self.packet_size + 2):]
-                        break
-
-                    if start_index > 0:
-                        # Eliminar bytes antes del byte de inicio
-                        self.buffer = self.buffer[start_index:]
-
-                    # Verificar si hay suficientes datos para un paquete completo + byte de fin
-                    if len(self.buffer) < self.packet_size + 2:
-                        break  # No hay suficientes datos para un paquete completo + byte de fin
-
-                    # Verificar el byte de fin de transmisión
-                    end_index = self.packet_size + 1
-                    if self.buffer[end_index] == self.start_end_byte:
-                        # Extraer datos del paquete
-                        packet_data = self.buffer[1:self.packet_size + 1]
-                        yield packet_data[:self.header_size], packet_data[self.header_size:]
-
-                        # Eliminar el paquete procesado y el byte de fin del buffer
-                        self.buffer = self.buffer[end_index + 1:]
-                    else:
-                        # Si no se encontró el byte de fin, eliminar solo el primer byte y continuar
-                        self.buffer = self.buffer[1:]
-            except Exception as e:
-                logging.error(f"Error in receive_data: {e}")  # Mensaje de depuración
+            data = self.port.read(self.packet_size)  # Lee 64 bytes del puerto
+            logging.debug(f"Receieved data: {(data).hex()}")  # Mensaje de depuración
+            if not data:
+                continue
+            
+            self.buffer.extend(data)  # Añade los datos leídos al buffer
+            
+            while len(self.buffer) >= 64:
+                # Buscar el byte de inicio (0x00)
+                start_index = self.buffer.find(0x00)
+                
+                if start_index == -1:
+                    # No se encontró el byte de inicio, descartar los bytes idle
+                    self.buffer = bytearray()
+                    break
+                
+                if start_index + 65 > len(self.buffer):
+                    # Si no hay suficientes datos para un paquete completo, espera más datos
+                    break
+                
+                # Verificar si el siguiente byte después del paquete es 0x00 (fin de la transmisión)
+                end_index = start_index + 65
+                
+                if self.buffer[end_index] == 0x00:
+                    # Extraer y procesar el paquete
+                    packet = self.buffer[start_index + 1 : start_index + 65]
+                    header = packet[:16]
+                    data = packet[16:]
+                    
+                    yield header, data
+                    
+                    # Eliminar el paquete procesado del buffer
+                    self.buffer = self.buffer[end_index + 1:]
+                else:
+                    # Si el siguiente byte no es 0x00, eliminar el byte de inicio y continuar
+                    self.buffer = self.buffer[start_index + 1:]
+        
+        
+        # while True:
+        #     data = self.port.read(self.packet_size)  # Lee 64 bytes del puerto
+        #     logging.debug(f"Receieved data: {(data).hex()}")  # Mensaje de depuración
+        #     if not data:
+        #         continue
+        #     else:
+        #         header = data[:16]
+        #         data = data[16:]
+        #         yield header, data
 
     def run(self):
         try:
+            i = 1
             while True:
                 for header, data in self.receive_data():
+                    print(f"PACKET RECEIVED {i}")
                     print(f"Received packet header: \n")
                     display_buf(header)
                     print("\n\n")
                     print(f"Received packet data: \n")
                     display_buf(data)
                     print("\n\n")
+                    i+=1
                     # Procesar el paquete aquí
         except KeyboardInterrupt:
             logging.info("Stopped by user")
@@ -133,7 +156,6 @@ def receive_thread_func(serial_protocol_port):
 
 # Ejemplo de uso
 if __name__ == "__main__":
-    run = True
     # port name format
     # PCI: /dev/ttySLGx, x=adapter number
     # USB: /dev/ttyUSBx, x=adapter number
@@ -182,16 +204,20 @@ if __name__ == "__main__":
     data = DEFAULT_PACKET_DATA
     try:
         while run:
-            serial_protocol_port.start_transmission()
-            serial_protocol_port.send_packet(header, data)
-            serial_protocol_port.end_transmission()
+            # serial_protocol_port.start_transmission()
+            # serial_protocol_port.send_packet(header, data)
+            # serial_protocol_port.end_transmission()
+
+            serial_protocol_port.send_data(header, data)
+
+            print(f"PACKET SENT {i}")
             print(f"Sent packet header: \n")
             display_buf(header)
             print("\n\n")
             print(f"Sent packet data: \n")
             display_buf(data)
             print("\n\n")
-            time.sleep(5)
+            time.sleep(1)
             i += 1
     except KeyboardInterrupt:
         run = False

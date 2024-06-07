@@ -117,7 +117,7 @@ settings.encoding = Port.NRZ
 settings.crc = Port.OFF
 settings.transmit_clock = Port.TXC_INPUT
 settings.receive_clock = Port.RXC_INPUT
-settings.internal_clock_rate = 115200
+settings.internal_clock_rate = 100224
 settings.internal_loopback = False
 port.apply_settings(settings)
 
