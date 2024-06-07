@@ -80,32 +80,34 @@ class SerialProtocolPort:
                 if not data:
                     continue
                 self.buffer.extend(data)
-                # logging.debug(f"Received data: {data.hex()}")  # Mensaje de depuración
 
-                while len(self.buffer) >= self.packet_size:
+                while len(self.buffer) >= self.packet_size + 1:
+                    # Buscar el byte de inicio
                     start_index = self.buffer.find(self.start_end_byte)
                     if start_index == -1:
-                        # No start byte found, discard leading bytes
+                        # No se encontró el byte de inicio, descartar los bytes iniciales
                         self.buffer = self.buffer[-self.packet_size:]
                         break
-                    
+
                     if start_index > 0:
-                        # Remove leading bytes before the start byte
+                        # Eliminar bytes antes del byte de inicio
                         self.buffer = self.buffer[start_index:]
 
                     if len(self.buffer) < self.packet_size + 1:
-                        break  # Not enough data for a full packet + end byte
-                    
-                    packet_data = self.buffer[1:self.packet_size + 1]  # Extract packet data
-                    yield packet_data[:self.header_size], packet_data[self.header_size:]  # Return header and data separately
+                        break  # No hay suficientes datos para un paquete completo + byte de final
 
-                    if self.buffer[self.packet_size] == self.start_end_byte:
-                        # If the next byte is the start byte, there's a new packet
-                        self.buffer = self.buffer[self.packet_size:]
+                    # Verificar el byte de fin de transmisión
+                    end_index = self.packet_size + 1
+                    if self.buffer[end_index] == self.start_end_byte:
+                        # Extraer datos del paquete
+                        packet_data = self.buffer[1:self.packet_size + 1]
+                        yield packet_data[:self.header_size], packet_data[self.header_size:]
+
+                        # Eliminar el paquete procesado y el byte de fin del buffer
+                        self.buffer = self.buffer[end_index + 1:]
                     else:
-                        # Otherwise, it's the end of transmission or more idle bytes
-                        self.buffer = self.buffer[self.packet_size + 1:]
-                        break
+                        # Si no se encontró el byte de fin, descartar el byte inicial y continuar
+                        self.buffer = self.buffer[1:]
             except Exception as e:
                 logging.error(f"Error in receive_data: {e}")  # Mensaje de depuración
 
@@ -178,8 +180,9 @@ if __name__ == "__main__":
     data = DEFAULT_PACKET_DATA
     try:
         while run:
+            serial_protocol_port.start_transmission()
             serial_protocol_port.send_packet(header, data)
-
+            serial_protocol_port.end_transmission()
             print(f"Sent packet header: \n")
             display_buf(header)
             print("\n\n")
