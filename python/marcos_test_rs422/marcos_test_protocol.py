@@ -81,20 +81,22 @@ class SerialProtocolPort:
                     continue
                 self.buffer.extend(data)
 
-                while len(self.buffer) >= self.packet_size + 1:
+                # Mantener el buffer para la búsqueda del byte de inicio y procesamiento del paquete completo
+                while len(self.buffer) >= self.packet_size + 2:
                     # Buscar el byte de inicio
                     start_index = self.buffer.find(self.start_end_byte)
                     if start_index == -1:
-                        # No se encontró el byte de inicio, descartar los bytes iniciales
-                        self.buffer = self.buffer[-self.packet_size:]
+                        # No se encontró el byte de inicio, descartar solo los primeros bytes
+                        self.buffer = self.buffer[-(self.packet_size + 2):]
                         break
 
                     if start_index > 0:
                         # Eliminar bytes antes del byte de inicio
                         self.buffer = self.buffer[start_index:]
 
-                    if len(self.buffer) < self.packet_size + 1:
-                        break  # No hay suficientes datos para un paquete completo + byte de final
+                    # Verificar si hay suficientes datos para un paquete completo + byte de fin
+                    if len(self.buffer) < self.packet_size + 2:
+                        break  # No hay suficientes datos para un paquete completo + byte de fin
 
                     # Verificar el byte de fin de transmisión
                     end_index = self.packet_size + 1
@@ -106,7 +108,7 @@ class SerialProtocolPort:
                         # Eliminar el paquete procesado y el byte de fin del buffer
                         self.buffer = self.buffer[end_index + 1:]
                     else:
-                        # Si no se encontró el byte de fin, descartar el byte inicial y continuar
+                        # Si no se encontró el byte de fin, eliminar solo el primer byte y continuar
                         self.buffer = self.buffer[1:]
             except Exception as e:
                 logging.error(f"Error in receive_data: {e}")  # Mensaje de depuración
