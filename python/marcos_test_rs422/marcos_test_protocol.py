@@ -90,7 +90,7 @@ class SerialProtocolPort:
             self.buffer.extend(data)
 
             while len(self.buffer) >= self.packet_size:
-                start_index = self.buffer.find(self.start_byte)
+                start_index = self.buffer.find(self.start_end_byte)
                 if start_index == -1:
                     # No start byte found, discard leading bytes
                     self.buffer = self.buffer[-self.packet_size:]
@@ -231,7 +231,7 @@ print(serial_protocol_port.port.get_settings())
 print('press Ctrl-C to stop program')
 
 serial_protocol_port.port.enable_receiver()
-receive_thread = threading.Thread(target=receive_thread_func)
+receive_thread = threading.Thread(target=receive_thread_func(serial_protocol_port))
 receive_thread.start()
 
 # # sample data = all 0
