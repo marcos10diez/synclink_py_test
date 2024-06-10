@@ -68,7 +68,7 @@ except OSError:
 
 if port.name.find('USB') != -1:
     # uncomment to select USB interface (RS232,V35,RS422)
-    # port.interface = Port.RS422
+    port.interface = Port.RS422
     if port.interface == Port.OFF:
         print('USB serial interface must be selected.')
         exit()
@@ -104,7 +104,7 @@ receive_thread.start()
 # prepare send buffer
 buf = bytearray(FRAME_SIZE)
 for i in range(0, len(buf)):
-    buf[i] = i & 0xff
+    buf[i] = i & 0x55
 
 try:
     i = 1
