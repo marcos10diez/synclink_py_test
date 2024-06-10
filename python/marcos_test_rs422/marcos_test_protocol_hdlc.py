@@ -209,13 +209,13 @@ if __name__ == "__main__":
 
             serial_protocol_port.send_packet(header, data)
 
-            # print(f"PACKET SENT {i}")
-            # print(f"Sent packet header: \n")
-            # display_buf(header)
-            # print("\n\n")
-            # print(f"Sent packet data: \n")
-            # display_buf(data)
-            # print("\n\n")
+            print(f"PACKET SENT {i}")
+            print(f"Sent packet header: \n")
+            display_buf(header)
+            print("\n\n")
+            print(f"Sent packet data: \n")
+            display_buf(data)
+            print("\n\n")
             time.sleep(1)
             i += 1
     except KeyboardInterrupt:
